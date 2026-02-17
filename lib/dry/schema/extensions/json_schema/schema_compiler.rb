@@ -134,13 +134,26 @@ module Dry
 
         # @api private
         def visit_or(node, opts = EMPTY_HASH)
-          node.each do |child|
-            c = self.class.new(loose: loose?)
-            c.keys.update(subschema: {})
-            c.visit(child, opts.merge(key: :subschema))
+          if opts[:member]
+            items_any_of = []
+            node.each do |child|
+              c = self.class.new(loose: loose?)
+              c.keys.update(subschema: {})
+              c.visit(child, opts.except(:member).merge(key: :subschema))
+              sub = c.keys[:subschema]
+              sub.delete(:required) if sub[:required]&.empty?
+              items_any_of << sub
+            end
+            keys[opts[:key]][:items] = {anyOf: items_any_of}
+          else
+            node.each do |child|
+              c = self.class.new(loose: loose?)
+              c.keys.update(subschema: {})
+              c.visit(child, opts.merge(key: :subschema))
 
-            any_of = (keys[opts[:key]][:anyOf] ||= [])
-            any_of << c.keys[:subschema]
+              any_of = (keys[opts[:key]][:anyOf] ||= [])
+              any_of << c.keys[:subschema]
+            end
           end
         end
 
